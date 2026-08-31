@@ -1,19 +1,13 @@
-# React + Vite
+# Gym Manager Web 💪
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sistema de gestión administrativa y control de cuotas diseñado para gimnasios. Creado como un MVP ágil y responsive para reemplazar el uso de planillas de cálculo.
 
-Currently, two official plugins are available:
+## 🚀 Tecnologías
+* **Frontend:** React + Vite
+* **Estilos:** Tailwind CSS + íconos de Lucide React
+* **Backend & Base de Datos:** Firebase (en integración)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-You can also try [the experimental native React Compiler support in plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md#rust-react-compiler) by using `compiler: true` in the plugin options instead of using the Babel plugin.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🛠️ Funcionalidades
+* **Gestión de Socios:** Control visual del estado de las cuotas (al día, por vencer, vencidas).
+* **Grilla de Clases:** Tarjetas interactivas con cálculo de ocupación y cupos en tiempo real.
+* **Configuración Dinámica:** Panel de control adaptable a la información comercial de cualquier cliente.
