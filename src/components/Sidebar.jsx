@@ -1,9 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LayoutDashboard, Users, Dumbbell, Settings, Menu, X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Leemos el nombre del gimnasio del localStorage (o usamos Gym Manager por defecto)
+  const [nombreGym, setNombreGym] = useState(() => {
+    return localStorage.getItem('nombreGym') || 'Gym Manager';
+  });
+
+  useEffect(() => {
+    // Escuchamos el evento personalizado cuando se guardan los datos en configuración
+    const handleGymNameChange = (e) => {
+      if (e.detail) {
+        setNombreGym(e.detail);
+      }
+    };
+
+    window.addEventListener('gymNameChanged', handleGymNameChange);
+
+    return () => {
+      window.removeEventListener('gymNameChanged', handleGymNameChange);
+    };
+  }, []);
 
   const navLinkClass = ({ isActive }) =>
     `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
@@ -37,9 +57,11 @@ export default function Sidebar() {
         transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        {/* Agregamos padding extra arriba en móvil para que no choque con el botón */}
         <div className="p-6 pt-20 md:pt-6">
-          <h2 className="text-2xl font-bold text-emerald-400">Gym Manager</h2>
+          {/* Mostramos el nombre dinámico del gimnasio */}
+          <h2 className="text-xl font-bold text-emerald-400 truncate" title={nombreGym}>
+            {nombreGym}
+          </h2>
         </div>
         
         <nav className="flex-1 px-4 space-y-2">
@@ -60,15 +82,15 @@ export default function Sidebar() {
         </nav>
 
         <div className="p-4 border-t border-gray-800">
-        <NavLink 
-          to="/configuracion" 
-          className={navLinkClass} 
-          onClick={() => setIsOpen(false)}
-        >
-          <Settings size={20} />
-          <span>Configuración</span>
-        </NavLink>
-      </div>
+          <NavLink 
+            to="/configuracion" 
+            className={navLinkClass} 
+            onClick={() => setIsOpen(false)}
+          >
+            <Settings size={20} />
+            <span>Configuración</span>
+          </NavLink>
+        </div>
       </aside>
     </>
   );

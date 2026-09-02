@@ -5,35 +5,68 @@ import { db } from "../firebase";
 
 export default function Socios() {
   const [socios, setSocios] = useState([]);
+  const [planesDisponibles, setPlanesDisponibles] = useState(['Pase Libre']);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Estados para el Modal y Edición
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null); 
-  
-  // Estado para controlar qué menú desplegable está abierto
   const [activeDropdown, setActiveDropdown] = useState(null);
 
   const [formData, setFormData] = useState({
     nombre: '',
     dni: '',
     plan: 'Pase Libre',
-    vencimiento: '',
-    estado: 'Al día'
+    vencimiento: ''
   });
 
   useEffect(() => {
-    const obtenerSocios = async () => {
+    const cargarDatos = async () => {
       const sociosRef = collection(db, "socios");
-      const snapshot = await getDocs(sociosRef);
-      const listaSocios = snapshot.docs.map(doc => ({
+      const snapshotSocios = await getDocs(sociosRef);
+      const listaSocios = snapshotSocios.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+
+      // --- ORDENAMIENTO POR PROXIMIDAD DE VENCIMIENTO ---
+      listaSocios.sort((a, b) => {
+        if (!a.vencimiento) return 1;
+        if (!b.vencimiento) return -1;
+        return a.vencimiento.localeCompare(b.vencimiento);
+      });
+
       setSocios(listaSocios);
+
+      const clasesRef = collection(db, "clases");
+      const snapshotClases = await getDocs(clasesRef);
+      const nombresClases = snapshotClases.docs.map(doc => doc.data().nombre);
+      const clasesUnicas = [...new Set(nombresClases)];
+      setPlanesDisponibles(clasesUnicas.length > 0 ? ["Pase Libre", ...clasesUnicas] : ["Pase Libre"]);
     };
-    obtenerSocios();
+    
+    cargarDatos();
   }, []);
+
+  const calcularEstadoSocio = (fechaVencimientoStr) => {
+    if (!fechaVencimientoStr) return { texto: 'Al día', clase: 'bg-emerald-100 text-emerald-700' };
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const [anio, mes, dia] = fechaVencimientoStr.split('-');
+    const vencimiento = new Date(anio, mes - 1, dia);
+    vencimiento.setHours(0, 0, 0, 0);
+
+    const diferenciaDias = Math.ceil((vencimiento - hoy) / (1000 * 60 * 60 * 24));
+
+    if (diferenciaDias < 0) {
+      return { texto: 'Vencido', clase: 'bg-red-100 text-red-700' };
+    } else if (diferenciaDias <= 3) {
+      return { texto: 'Por vencer', clase: 'bg-amber-100 text-amber-700' };
+    } else {
+      return { texto: 'Al día', clase: 'bg-emerald-100 text-emerald-700' };
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -44,7 +77,12 @@ export default function Socios() {
 
   const abrirModalNuevo = () => {
     setEditingId(null);
-    setFormData({ nombre: '', dni: '', plan: 'Pase Libre', vencimiento: '', estado: 'Al día' });
+    setFormData({ 
+      nombre: '', 
+      dni: '', 
+      plan: planesDisponibles[0] || 'Pase Libre', 
+      vencimiento: '' 
+    });
     setIsModalOpen(true);
   };
 
@@ -54,8 +92,7 @@ export default function Socios() {
       nombre: socio.nombre,
       dni: socio.dni || '',
       plan: socio.plan || 'Pase Libre',
-      vencimiento: socio.vencimiento,
-      estado: socio.estado || 'Al día'
+      vencimiento: socio.vencimiento || ''
     });
     setActiveDropdown(null); 
     setIsModalOpen(true);
@@ -67,10 +104,17 @@ export default function Socios() {
       if (editingId) {
         const socioRef = doc(db, "socios", editingId);
         await updateDoc(socioRef, formData);
-        setSocios(socios.map(s => s.id === editingId ? { ...s, ...formData } : s));
+        
+        // Actualizamos y reordenamos la lista en tiempo real
+        const listaActualizada = socios.map(s => s.id === editingId ? { ...s, ...formData } : s);
+        listaActualizada.sort((a, b) => (a.vencimiento || '').localeCompare(b.vencimiento || ''));
+        setSocios(listaActualizada);
+
       } else {
         const docRef = await addDoc(collection(db, "socios"), formData);
-        setSocios([...socios, { id: docRef.id, ...formData }]);
+        const nuevaLista = [...socios, { id: docRef.id, ...formData }];
+        nuevaLista.sort((a, b) => (a.vencimiento || '').localeCompare(b.vencimiento || ''));
+        setSocios(nuevaLista);
       }
       setIsModalOpen(false);
     } catch (error) {
@@ -80,14 +124,13 @@ export default function Socios() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("¿Estás seguro de que querés eliminar a este socio? Esta acción no se puede deshacer.")) {
+    if (window.confirm("¿Estás seguro de que querés eliminar a este socio?")) {
       try {
         await deleteDoc(doc(db, "socios", id));
         setSocios(socios.filter(s => s.id !== id));
         setActiveDropdown(null);
       } catch (error) {
         console.error("Error al eliminar:", error);
-        alert("Hubo un error al eliminar el socio");
       }
     }
   };
@@ -128,8 +171,7 @@ export default function Socios() {
         </div>
       </div>
 
-      {/* Contenedor principal de la tabla corregido (min-h-[400px] y sin overflow) */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 min-h-[200px] overflow-x-auto">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 min-h-[300px] overflow-x-auto md:overflow-visible">
         <table className="w-full text-left border-collapse min-w-[600px]">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
@@ -137,41 +179,39 @@ export default function Socios() {
               <th className="p-4 font-semibold text-gray-600">DNI</th>
               <th className="p-4 font-semibold text-gray-600">Plan</th>
               <th className="p-4 font-semibold text-gray-600">Vencimiento</th>
-              <th className="p-4 font-semibold text-gray-600">Estado</th>
+              <th className="p-4 font-semibold text-gray-600">Estado (Automático)</th>
               <th className="p-4 font-semibold text-gray-600"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {sociosFiltrados.map((socio) => {
-              let estadoBadge = socio.estado;
-              if (socio.estado?.toLowerCase() === 'al dia') estadoBadge = 'Al día';
+              const estadoInfo = calcularEstadoSocio(socio.vencimiento);
               
               return (
                 <tr key={socio.id} className="hover:bg-gray-50 transition-colors">
                   <td className="p-4 font-medium text-gray-800">{socio.nombre}</td>
                   <td className="p-4 text-gray-600">{socio.dni || '-'}</td>
                   <td className="p-4 text-gray-600">{socio.plan || '-'}</td>
-                  <td className="p-4 text-gray-600">{socio.vencimiento}</td>
+                  <td className="p-4 text-gray-600">{socio.vencimiento || '-'}</td>
                   <td className="p-4">
-                    <span className={`inline-block whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold tracking-wide
-                      ${estadoBadge === 'Al día' ? 'bg-emerald-100 text-emerald-700' : ''}
-                      ${estadoBadge === 'Vencido' ? 'bg-red-100 text-red-700' : ''}
-                      ${estadoBadge === 'Por vencer' ? 'bg-amber-100 text-amber-700' : ''}
-                    `}>
-                      {estadoBadge}
+                    <span className={`inline-block whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${estadoInfo.clase}`}>
+                      {estadoInfo.texto}
                     </span>
                   </td>
-                  <td className="p-4 text-right relative">
+                  
+                  <td className={`p-4 text-right ${activeDropdown === socio.id ? 'relative z-10' : 'relative'}`}>
                     <button 
-                      onClick={() => setActiveDropdown(activeDropdown === socio.id ? null : socio.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveDropdown(activeDropdown === socio.id ? null : socio.id);
+                      }}
                       className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
                     >
                       <MoreVertical size={20} />
                     </button>
 
-                    {/* Menú Desplegable elevado con z-50 y shadow-xl */}
                     {activeDropdown === socio.id && (
-                      <div className="absolute right-8 top-10 w-36 bg-white border border-gray-100 rounded-lg shadow-xl z-50 overflow-hidden">
+                      <div className="absolute right-12 top-2 w-36 bg-white border border-gray-100 rounded-lg shadow-xl z-50 overflow-hidden">
                         <button 
                           onClick={() => abrirModalEdicion(socio)}
                           className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
@@ -216,6 +256,7 @@ export default function Socios() {
                 <X size={24} />
               </button>
             </div>
+            
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
@@ -229,6 +270,7 @@ export default function Socios() {
                   placeholder="Ej: Lionel Messi"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">DNI</label>
                 <input 
@@ -241,46 +283,37 @@ export default function Socios() {
                   placeholder="Sin puntos"
                 />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Plan / Actividad</label>
                   <select 
                     name="plan"
                     value={formData.plan}
                     onChange={handleChange}
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
                   >
-                    <option value="Pase Libre">Pase Libre</option>
-                    <option value="Musculación">Musculación</option>
-                    <option value="Crossfit">Crossfit</option>
-                    <option value="Boxeo">Boxeo</option>
+                    {planesDisponibles.map((planOpcion, index) => (
+                      <option key={index} value={planOpcion}>
+                        {planOpcion}
+                      </option>
+                    ))}
                   </select>
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                  <select 
-                    name="estado"
-                    value={formData.estado}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Vencimiento</label>
+                  <input 
+                    type="date" 
+                    name="vencimiento"
+                    required
+                    value={formData.vencimiento}
                     onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
-                  >
-                    <option value="Al día">Al día</option>
-                    <option value="Por vencer">Por vencer</option>
-                    <option value="Vencido">Vencido</option>
-                  </select>
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Vencimiento</label>
-                <input 
-                  type="date" 
-                  name="vencimiento"
-                  required
-                  value={formData.vencimiento}
-                  onChange={handleChange}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
-              </div>
+
               <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-gray-100">
                 <button 
                   type="button"
