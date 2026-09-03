@@ -10,7 +10,7 @@ export default function Login({ onLogin }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Simulación de validación (más adelante lo conectamos a Firebase/Supabase)
+    // Simulación de validación (más adelante lo conecto a Firebase/Supabase)
     if (email === 'admin@gym.com' && password === '123456') {
       onLogin(); // Avisa a la App que el login fue exitoso
       navigate('/'); // Redirige al panel principal

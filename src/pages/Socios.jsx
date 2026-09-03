@@ -28,7 +28,6 @@ export default function Socios() {
         ...doc.data()
       }));
 
-      // --- ORDENAMIENTO POR PROXIMIDAD DE VENCIMIENTO ---
       listaSocios.sort((a, b) => {
         if (!a.vencimiento) return 1;
         if (!b.vencimiento) return -1;
@@ -80,7 +79,7 @@ export default function Socios() {
     setFormData({ 
       nombre: '', 
       dni: '', 
-      plan: planesDisponibles[0] || 'Pase Libre', 
+      plan: 'Sin asignar', 
       vencimiento: '' 
     });
     setIsModalOpen(true);
@@ -91,7 +90,7 @@ export default function Socios() {
     setFormData({
       nombre: socio.nombre,
       dni: socio.dni || '',
-      plan: socio.plan || 'Pase Libre',
+      plan: socio.plan || 'Sin asignar',
       vencimiento: socio.vencimiento || ''
     });
     setActiveDropdown(null); 
@@ -105,7 +104,6 @@ export default function Socios() {
         const socioRef = doc(db, "socios", editingId);
         await updateDoc(socioRef, formData);
         
-        // Actualizamos y reordenamos la lista en tiempo real
         const listaActualizada = socios.map(s => s.id === editingId ? { ...s, ...formData } : s);
         listaActualizada.sort((a, b) => (a.vencimiento || '').localeCompare(b.vencimiento || ''));
         setSocios(listaActualizada);
@@ -289,16 +287,17 @@ export default function Socios() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Plan / Actividad</label>
                   <select 
                     name="plan"
-                    value={formData.plan}
-                    onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                    value={formData.plan || 'Sin asignar'}
+                    disabled={true} 
+                    className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed focus:outline-none"
                   >
-                    {planesDisponibles.map((planOpcion, index) => (
-                      <option key={index} value={planOpcion}>
-                        {planOpcion}
-                      </option>
-                    ))}
+                    <option value={formData.plan || 'Sin asignar'}>
+                      {formData.plan || 'Sin asignar'}
+                    </option>
                   </select>
+                  <p className="text-xs text-amber-600 mt-1 font-medium leading-tight">
+                    * Para asignar o cambiar el plan, anotá al alumno desde la pestaña "Clases".
+                  </p>
                 </div>
 
                 <div>
