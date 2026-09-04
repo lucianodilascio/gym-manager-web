@@ -11,11 +11,11 @@ export default function Login({ onLogin }) {
     e.preventDefault();
     
     // Simulación de validación (más adelante lo conecto a Firebase/Supabase)
-    if (email === 'admin@gym.com' && password === '123456') {
+    if (email === 'admin@pilates.com' && password === 'pilates2026') {
       onLogin(); // Avisa a la App que el login fue exitoso
       navigate('/'); // Redirige al panel principal
     } else {
-      alert('Credenciales incorrectas. Probá con admin@gym.com y 123456');
+      alert('Credenciales incorrectas. Probá con admin@pilates.com y de contraseña pilates2026');
     }
   };
 
@@ -38,7 +38,7 @@ export default function Login({ onLogin }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-              placeholder="admin@gym.com"
+              placeholder="admin@pilates.com"
               required
             />
           </div>

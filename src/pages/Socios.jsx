@@ -79,7 +79,7 @@ export default function Socios() {
     setFormData({ 
       nombre: '', 
       dni: '', 
-      plan: 'Sin asignar', 
+      plan: '--', 
       vencimiento: '' 
     });
     setIsModalOpen(true);
@@ -90,7 +90,7 @@ export default function Socios() {
     setFormData({
       nombre: socio.nombre,
       dni: socio.dni || '',
-      plan: socio.plan || 'Sin asignar',
+      plan: socio.plan || '--',
       vencimiento: socio.vencimiento || ''
     });
     setActiveDropdown(null); 
@@ -287,12 +287,12 @@ export default function Socios() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Plan / Actividad</label>
                   <select 
                     name="plan"
-                    value={formData.plan || 'Sin asignar'}
+                    value={formData.plan || '--'}
                     disabled={true} 
                     className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed focus:outline-none"
                   >
-                    <option value={formData.plan || 'Sin asignar'}>
-                      {formData.plan || 'Sin asignar'}
+                    <option value={formData.plan || '--'}>
+                      {formData.plan || '--'}
                     </option>
                   </select>
                   <p className="text-xs text-amber-600 mt-1 font-medium leading-tight">
