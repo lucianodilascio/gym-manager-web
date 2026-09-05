@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, Dumbbell, Settings, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Dumbbell, Settings, Menu, X, CalendarRange } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 export default function Sidebar() {
@@ -78,6 +78,12 @@ export default function Sidebar() {
           <NavLink to="/clases" className={navLinkClass} onClick={() => setIsOpen(false)}>
             <Dumbbell size={20} />
             <span>Clases</span>
+          </NavLink>
+
+          {/* ACÁ ESTÁ EL NUEVO LINK A LA GRILLA */}
+          <NavLink to="/grilla" className={navLinkClass} onClick={() => setIsOpen(false)}>
+            <CalendarRange size={20} />
+            <span>Grilla</span>
           </NavLink>
         </nav>
 

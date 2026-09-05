@@ -6,6 +6,7 @@ import Socios from './pages/Socios'
 import Clases from './pages/Clases'
 import Login from './pages/Login'
 import Configuracion from './pages/Configuracion'
+import Grilla from './pages/Grilla';
 
 const ProtectedRoute = ({ isAuth, children }) => {
   if (!isAuth) {
@@ -52,6 +53,7 @@ function App() {
                     <Route path="/socios" element={<Socios />} />
                     <Route path="/clases" element={<Clases />} />
                     <Route path="/configuracion" element={<Configuracion />} />
+                    <Route path="/grilla" element={<Grilla />} />
                   </Routes>
                 </main>
               </div>
