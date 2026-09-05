@@ -2,6 +2,7 @@ import { Plus, Users, Clock, Edit, Trash2, UserPlus, X, Search, CalendarDays } f
 import { useState, useEffect } from "react";
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
+import Swal from 'sweetalert2';
 
 export default function Clases() {
   const [clases, setClases] = useState([]);
@@ -11,7 +12,6 @@ export default function Clases() {
   const [editingId, setEditingId] = useState(null);
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   const [isListaModalOpen, setIsListaModalOpen] = useState(false);
-  
   const [claseSeleccionada, setClaseSeleccionada] = useState(null);
   const [socioAInscribir, setSocioAInscribir] = useState('');
   const [busquedaSocio, setBusquedaSocio] = useState('');
@@ -43,7 +43,8 @@ export default function Clases() {
       const listaSocios = sociosSnap.docs.map(doc => ({
         id: doc.id,
         nombre: doc.data().nombre,
-        estado: doc.data().estado
+        estado: doc.data().estado,
+        plan: doc.data().plan // Aseguramos traer el plan para la lógica de suma
       }));
       listaSocios.sort((a, b) => a.nombre.localeCompare(b.nombre));
       setSocios(listaSocios);
@@ -116,13 +117,26 @@ export default function Clases() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("¿Estás seguro de eliminar este turno?")) {
+ const handleDelete = async (id) => {
+    const result = await Swal.fire({
+      title: '¿Eliminar este turno?',
+      text: "Esta acción no se puede deshacer.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
       try {
         await deleteDoc(doc(db, "clases", id));
         setClases(clases.filter(c => c.id !== id));
+        Swal.fire({ icon: 'success', title: 'Turno eliminado', showConfirmButton: false, timer: 1500 });
       } catch (error) {
         console.error("Error al eliminar:", error);
+        Swal.fire('Error', 'No se pudo eliminar el turno.', 'error');
       }
     }
   };
@@ -138,6 +152,25 @@ export default function Clases() {
     e.preventDefault();
     if (!socioAInscribir) return;
 
+    const socioInfo = socios.find(s => s.id === socioAInscribir);
+    const clasesDelSocio = clases.filter(c => (c.listaInscriptos || []).includes(socioAInscribir));
+    
+    const haySuperposicion = clasesDelSocio.some(c => {
+      const mismoHorario = c.horario === claseSeleccionada.horario;
+      const diasCompartidos = (c.dias || []).some(dia => (claseSeleccionada.dias || []).includes(dia));
+      return mismoHorario && diasCompartidos;
+    });
+
+    if (haySuperposicion) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Choque de horarios',
+        text: 'Este alumno ya tiene otra clase en el mismo horario y día(s).',
+        confirmButtonColor: '#10b981' // Verde esmeralda de Tailwind
+      });
+      return;
+    }
+
     try {
       const listaActual = claseSeleccionada.listaInscriptos || [];
       const nuevaLista = [...listaActual, socioAInscribir];
@@ -148,15 +181,29 @@ export default function Clases() {
         inscriptos: nuevaLista.length
       });
       
+      let planActual = socioInfo?.plan || '--';
+      let nuevoPlan = planActual === '--' 
+        ? claseSeleccionada.nombre 
+        : `${planActual} + ${claseSeleccionada.nombre}`;
+
       const socioRef = doc(db, "socios", socioAInscribir);
-      await updateDoc(socioRef, { plan: claseSeleccionada.nombre });
+      await updateDoc(socioRef, { plan: nuevoPlan });
 
       setClases(clases.map(c => c.id === claseSeleccionada.id ? { ...c, listaInscriptos: nuevaLista, inscriptos: nuevaLista.length } : c));
-      setSocios(socios.map(s => s.id === socioAInscribir ? { ...s, plan: claseSeleccionada.nombre } : s));
+      setSocios(socios.map(s => s.id === socioAInscribir ? { ...s, plan: nuevoPlan } : s));
       setIsEnrollModalOpen(false);
+      
+      // Opcional: Alerta de éxito pequeña
+      Swal.fire({
+        icon: 'success',
+        title: 'Inscripto',
+        showConfirmButton: false,
+        timer: 1500
+      });
+
     } catch (error) {
       console.error("Error al inscribir:", error);
-      alert("Hubo un error al anotar al alumno y actualizar su plan.");
+      Swal.fire('Error', 'Hubo un error al anotar al alumno.', 'error');
     }
   };
 
@@ -166,9 +213,20 @@ export default function Clases() {
   };
 
   const handleDarDeBaja = async (idSocioRemover) => {
-    if (window.confirm("¿Dar de baja a este alumno de la clase?")) {
+    // Alerta de confirmación de SweetAlert
+    const result = await Swal.fire({
+      title: '¿Dar de baja?',
+      text: "Vas a remover a este alumno de la clase.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444', // Rojo de Tailwind
+      cancelButtonColor: '#6b7280', // Gris
+      confirmButtonText: 'Sí, quitar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
       try {
-        // 1. Lo quitamos de la clase
         const nuevaLista = (claseSeleccionada.listaInscriptos || []).filter(id => id !== idSocioRemover);
         const claseRef = doc(db, "clases", claseSeleccionada.id);
         
@@ -177,20 +235,25 @@ export default function Clases() {
           inscriptos: nuevaLista.length
         });
 
-        // 2. Le limpiamos el plan en su ficha personal (AHORA CON '--')
-        const socioRef = doc(db, "socios", idSocioRemover);
-        await updateDoc(socioRef, { 
-          plan: '--' 
-        });
+        const socioInfo = socios.find(s => s.id === idSocioRemover);
+        let planActual = socioInfo?.plan || '--';
+        let nuevoPlan = '--';
         
-        // 3. Actualizamos los estados visuales
+        if (planActual !== '--') {
+          const planesArray = planActual.split(' + ').filter(p => p !== claseSeleccionada.nombre);
+          nuevoPlan = planesArray.length > 0 ? planesArray.join(' + ') : '--';
+        }
+
+        const socioRef = doc(db, "socios", idSocioRemover);
+        await updateDoc(socioRef, { plan: nuevoPlan });
+        
         setClases(clases.map(c => c.id === claseSeleccionada.id ? { ...c, listaInscriptos: nuevaLista, inscriptos: nuevaLista.length } : c));
         setClaseSeleccionada(prev => ({ ...prev, listaInscriptos: nuevaLista, inscriptos: nuevaLista.length }));
-        setSocios(socios.map(s => s.id === idSocioRemover ? { ...s, plan: '--' } : s)); // Actualiza la lista interna de alumnos
+        setSocios(socios.map(s => s.id === idSocioRemover ? { ...s, plan: nuevoPlan } : s));
         
       } catch (error) {
         console.error("Error al dar de baja:", error);
-        alert("Hubo un error al remover al alumno");
+        Swal.fire('Error', 'Hubo un error al remover al alumno.', 'error');
       }
     }
   };
@@ -212,6 +275,7 @@ export default function Clases() {
     return diasOrdenados.map(d => nombresCortos[d]).join(' - ');
   };
 
+  // 4. Permitimos buscar socios que no estén en ESTA clase específica (sin importar si van a otras)
   const sociosDisponibles = socios.filter(s => !(claseSeleccionada?.listaInscriptos || []).includes(s.id));
   const sociosFiltrados = sociosDisponibles.filter(socio => socio.nombre.toLowerCase().includes(busquedaSocio.toLowerCase()));
 

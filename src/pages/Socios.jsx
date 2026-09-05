@@ -2,6 +2,7 @@ import { Search, Plus, MoreVertical, X, Edit2, Trash2 } from 'lucide-react';
 import { useState, useEffect } from "react";
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
+import Swal from 'sweetalert2';
 
 export default function Socios() {
   const [socios, setSocios] = useState([]);
@@ -121,14 +122,27 @@ export default function Socios() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("¿Estás seguro de que querés eliminar a este socio?")) {
+ const handleDelete = async (id) => {
+    const result = await Swal.fire({
+      title: '¿Eliminar socio?',
+      text: "Se borrarán todos sus datos del sistema.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
       try {
         await deleteDoc(doc(db, "socios", id));
         setSocios(socios.filter(s => s.id !== id));
         setActiveDropdown(null);
+        Swal.fire({ icon: 'success', title: 'Socio eliminado', showConfirmButton: false, timer: 1500 });
       } catch (error) {
         console.error("Error al eliminar:", error);
+        Swal.fire('Error', 'No se pudo eliminar al socio.', 'error');
       }
     }
   };
