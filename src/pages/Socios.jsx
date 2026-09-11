@@ -9,7 +9,6 @@ export default function Socios() {
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   
-  // Estados para el Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
@@ -32,7 +31,6 @@ export default function Socios() {
         id: doc.id,
         ...doc.data()
       }));
-      // Ordenar alfabéticamente
       listaSocios.sort((a, b) => a.nombre.localeCompare(b.nombre));
       
       setSocios(listaSocios); 
@@ -67,6 +65,22 @@ export default function Socios() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (formData.dni) {
+      const dniLimpio = formData.dni.toString().trim();
+      const socioDuplicado = socios.find(s => s.dni?.toString().trim() === dniLimpio && s.id !== editingId);
+
+      if (socioDuplicado) {
+        Swal.fire({
+          icon: 'error',
+          title: 'DNI Duplicado',
+          text: `El DNI ${dniLimpio} ya está registrado a nombre de ${socioDuplicado.nombre}.`,
+          confirmButtonColor: '#ef4444'
+        });
+        return; 
+      }
+    }
+
     try {
       if (editingId) {
         const socioRef = doc(db, "socios", editingId);
@@ -99,7 +113,28 @@ export default function Socios() {
 
     if (result.isConfirmed) {
       try {
+        // 1. Borrar al socio de la base de datos principal
         await deleteDoc(doc(db, "socios", id));
+
+        // 2. BORRADO EN CASCADA: Buscar en todas las clases y sacarlo si estaba anotado
+        const clasesRef = collection(db, "clases");
+        const clasesSnap = await getDocs(clasesRef);
+        
+        clasesSnap.forEach(async (claseDoc) => {
+          const claseData = claseDoc.data();
+          if (claseData.listaInscriptos && claseData.listaInscriptos.includes(id)) {
+            // Filtramos su ID de la lista
+            const nuevaLista = claseData.listaInscriptos.filter(socioId => socioId !== id);
+            
+            // Actualizamos la clase con la nueva lista y el nuevo contador de cupos
+            await updateDoc(doc(db, "clases", claseDoc.id), {
+              listaInscriptos: nuevaLista,
+              inscriptos: nuevaLista.length
+            });
+          }
+        });
+
+        // 3. Actualizar la vista
         setSocios(socios.filter(s => s.id !== id));
         Swal.fire({ icon: 'success', title: 'Socio eliminado', showConfirmButton: false, timer: 1500 });
       } catch (error) {
@@ -170,16 +205,13 @@ export default function Socios() {
     return <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md text-xs font-bold tracking-wide">AL DÍA</span>;
   };
 
-  // --- FUNCIÓN PARA FORMATEAR EL DNI VISUALMENTE ---
   const formatearDNI = (dni) => {
     if (!dni) return '-';
-    // Esta expresión regular le agrega un punto cada 3 números desde el final
     return dni.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
   const sociosFiltrados = socios.filter((socio) => {
     const busq = busqueda.toLowerCase();
-    // Le quitamos los puntos a la búsqueda por si Mari tipea "41.2" en lugar de "412"
     const busqDniLimpio = busq.replace(/\./g, ''); 
     
     const coincideNombre = socio.nombre.toLowerCase().includes(busq);
@@ -239,7 +271,6 @@ export default function Socios() {
                       <div className="font-bold text-gray-800">{socio.nombre}</div>
                     </td>
                     <td className="p-4">
-                      {/* APLICAMOS EL FORMATO AL DNI AQUÍ */}
                       <div className="text-sm text-gray-800 font-medium">{formatearDNI(socio.dni)}</div>
                     </td>
                     <td className="p-4 font-medium text-gray-700">
@@ -292,7 +323,6 @@ export default function Socios() {
         </div>
       </div>
 
-      {/* MODAL CREAR / EDITAR */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden flex flex-col">
@@ -310,7 +340,7 @@ export default function Socios() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">DNI</label>
-                  <input type="number" name="dni" value={formData.dni} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Sin puntos" />
+                  <input type="number" name="dni" required value={formData.dni} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Sin puntos" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
