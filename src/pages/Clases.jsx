@@ -12,11 +12,11 @@ export default function Clases() {
   const [editingId, setEditingId] = useState(null);
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   const [isListaModalOpen, setIsListaModalOpen] = useState(false);
+  
   const [claseSeleccionada, setClaseSeleccionada] = useState(null);
   const [socioAInscribir, setSocioAInscribir] = useState('');
   const [busquedaSocio, setBusquedaSocio] = useState('');
 
-  // 1. AÑADIMOS EL CAMPO 'dias' AL ESTADO DEL FORMULARIO
   const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
   
   const [formData, setFormData] = useState({
@@ -24,7 +24,7 @@ export default function Clases() {
     horario: '',
     profesor: '',
     cupo: '',
-    dias: [] // Array para guardar los días seleccionados
+    dias: [] 
   });
 
   useEffect(() => {
@@ -43,8 +43,8 @@ export default function Clases() {
       const listaSocios = sociosSnap.docs.map(doc => ({
         id: doc.id,
         nombre: doc.data().nombre,
-        estado: doc.data().estado,
-        plan: doc.data().plan // Aseguramos traer el plan para la lógica de suma
+        vencimiento: doc.data().vencimiento, 
+        plan: doc.data().plan 
       }));
       listaSocios.sort((a, b) => a.nombre.localeCompare(b.nombre));
       setSocios(listaSocios);
@@ -57,14 +57,13 @@ export default function Clases() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 2. LÓGICA PARA MANEJAR LOS CHECKBOXES DE LOS DÍAS
   const handleDiaChange = (dia) => {
     setFormData(prev => {
       const diasActuales = prev.dias || [];
       if (diasActuales.includes(dia)) {
-        return { ...prev, dias: diasActuales.filter(d => d !== dia) }; // Si ya está, lo saca
+        return { ...prev, dias: diasActuales.filter(d => d !== dia) };
       } else {
-        return { ...prev, dias: [...diasActuales, dia] }; // Si no está, lo agrega
+        return { ...prev, dias: [...diasActuales, dia] };
       }
     });
   };
@@ -82,7 +81,7 @@ export default function Clases() {
       horario: clase.horario,
       profesor: clase.profesor,
       cupo: clase.cupo,
-      dias: clase.dias || [] // Cargamos los días si ya los tenía
+      dias: clase.dias || []
     });
     setIsModalOpen(true);
   };
@@ -117,7 +116,7 @@ export default function Clases() {
     }
   };
 
- const handleDelete = async (id) => {
+  const handleDelete = async (id) => {
     const result = await Swal.fire({
       title: '¿Eliminar este turno?',
       text: "Esta acción no se puede deshacer.",
@@ -153,8 +152,25 @@ export default function Clases() {
     if (!socioAInscribir) return;
 
     const socioInfo = socios.find(s => s.id === socioAInscribir);
+
+    if (socioInfo?.vencimiento) {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const [year, month, day] = socioInfo.vencimiento.split('-');
+      const venc = new Date(year, month - 1, day);
+      
+      if (venc < hoy) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Cuota vencida',
+          text: `No podés anotar a ${socioInfo.nombre} porque su cuota venció el ${socioInfo.vencimiento.split('-').reverse().join('/')}.`,
+          confirmButtonColor: '#ef4444'
+        });
+        return; 
+      }
+    }
+
     const clasesDelSocio = clases.filter(c => (c.listaInscriptos || []).includes(socioAInscribir));
-    
     const haySuperposicion = clasesDelSocio.some(c => {
       const mismoHorario = c.horario === claseSeleccionada.horario;
       const diasCompartidos = (c.dias || []).some(dia => (claseSeleccionada.dias || []).includes(dia));
@@ -166,7 +182,7 @@ export default function Clases() {
         icon: 'error',
         title: 'Choque de horarios',
         text: 'Este alumno ya tiene otra clase en el mismo horario y día(s).',
-        confirmButtonColor: '#10b981' // Verde esmeralda de Tailwind
+        confirmButtonColor: '#10b981' 
       });
       return;
     }
@@ -193,7 +209,6 @@ export default function Clases() {
       setSocios(socios.map(s => s.id === socioAInscribir ? { ...s, plan: nuevoPlan } : s));
       setIsEnrollModalOpen(false);
       
-      // Opcional: Alerta de éxito pequeña
       Swal.fire({
         icon: 'success',
         title: 'Inscripto',
@@ -213,14 +228,13 @@ export default function Clases() {
   };
 
   const handleDarDeBaja = async (idSocioRemover) => {
-    // Alerta de confirmación de SweetAlert
     const result = await Swal.fire({
       title: '¿Dar de baja?',
       text: "Vas a remover a este alumno de la clase.",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#ef4444', // Rojo de Tailwind
-      cancelButtonColor: '#6b7280', // Gris
+      confirmButtonColor: '#ef4444', 
+      cancelButtonColor: '#6b7280', 
       confirmButtonText: 'Sí, quitar',
       cancelButtonText: 'Cancelar'
     });
@@ -258,24 +272,26 @@ export default function Clases() {
     }
   };
 
-  // 3. FUNCIÓN PARA FORMATEAR LOS DÍAS EN LA TARJETA (Ej: Lunes, Miércoles -> Lun, Mié)
   const formatearDias = (diasArray) => {
     if (!diasArray || diasArray.length === 0) return "Días no asignados";
-    
-    // Mapeo para nombres cortos
     const nombresCortos = {
       'Lunes': 'Lun', 'Martes': 'Mar', 'Miércoles': 'Mié', 
       'Jueves': 'Jue', 'Viernes': 'Vie', 'Sábado': 'Sáb'
     };
-
-    // Ordenamos cronológicamente
     const orden = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const diasOrdenados = [...diasArray].sort((a, b) => orden.indexOf(a) - orden.indexOf(b));
-
     return diasOrdenados.map(d => nombresCortos[d]).join(' - ');
   };
 
-  // 4. Permitimos buscar socios que no estén en ESTA clase específica (sin importar si van a otras)
+  const estaVencido = (fecha) => {
+    if (!fecha) return false;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const [year, month, day] = fecha.split('-');
+    const venc = new Date(year, month - 1, day);
+    return venc < hoy;
+  };
+
   const sociosDisponibles = socios.filter(s => !(claseSeleccionada?.listaInscriptos || []).includes(s.id));
   const sociosFiltrados = sociosDisponibles.filter(socio => socio.nombre.toLowerCase().includes(busquedaSocio.toLowerCase()));
 
@@ -313,7 +329,6 @@ export default function Clases() {
                     <Clock size={16} className="text-gray-400" />
                     <span>{clase.horario} hs</span>
                   </div>
-                  {/* 4. MOSTRAMOS LOS DÍAS EN LA TARJETA */}
                   <div className="flex items-center gap-2">
                     <CalendarDays size={16} className="text-gray-400" />
                     <span className="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">{formatearDias(clase.dias)}</span>
@@ -360,7 +375,6 @@ export default function Clases() {
         )}
       </div>
 
-      {/* 5. MODIFICAMOS EL MODAL DE CREAR/EDITAR PARA AÑADIR LOS CHECKBOXES */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
@@ -375,24 +389,13 @@ export default function Clases() {
                 <input type="text" name="nombre" required value={formData.nombre} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ej: Pilates" />
               </div>
 
-              {/* SECCIÓN DE DÍAS */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Días de la semana</label>
                 <div className="grid grid-cols-3 gap-2">
                   {diasSemana.map(dia => (
-                    <label key={dia} className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer text-sm font-medium transition-colors select-none
-                      ${(formData.dias || []).includes(dia) 
-                        ? 'bg-emerald-50 border-emerald-500 text-emerald-700' 
-                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <input 
-                        type="checkbox" 
-                        className="hidden" 
-                        checked={(formData.dias || []).includes(dia)}
-                        onChange={() => handleDiaChange(dia)}
-                      />
-                      {dia.substring(0, 3)} {/* Muestra solo "Lun", "Mar", etc */}
+                    <label key={dia} className={`flex items-center justify-center p-2 border rounded-lg cursor-pointer text-sm font-medium transition-colors select-none ${(formData.dias || []).includes(dia) ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                      <input type="checkbox" className="hidden" checked={(formData.dias || []).includes(dia)} onChange={() => handleDiaChange(dia)} />
+                      {dia.substring(0, 3)} 
                     </label>
                   ))}
                 </div>
@@ -422,7 +425,6 @@ export default function Clases() {
         </div>
       )}
 
-      {/* Modal INSCRIBIR (sin cambios) */}
       {isEnrollModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
@@ -442,7 +444,7 @@ export default function Clases() {
                     sociosFiltrados.map(socio => (
                       <div key={socio.id} onClick={() => setSocioAInscribir(socio.id)} className={`p-3 border-b border-gray-100 last:border-0 cursor-pointer transition-colors flex justify-between items-center ${socioAInscribir === socio.id ? 'bg-emerald-50 border-l-4 border-l-emerald-500' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}>
                         <span className={`font-medium ${socioAInscribir === socio.id ? 'text-emerald-700' : 'text-gray-700'}`}>{socio.nombre}</span>
-                        {socio.estado?.toLowerCase() === 'vencido' && <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-md font-bold tracking-wide">⚠️ Vencida</span>}
+                        {estaVencido(socio.vencimiento) && <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-md font-bold tracking-wide">⚠️ Vencida</span>}
                       </div>
                     ))
                   ) : (
@@ -459,7 +461,7 @@ export default function Clases() {
         </div>
       )}
 
-      {/* Modal VER LISTA (sin cambios) */}
+      {/* MODAL LISTA DE PRESENTES ACTUALIZADO */}
       {isListaModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
@@ -473,9 +475,19 @@ export default function Clases() {
                 {claseSeleccionada?.listaInscriptos?.length > 0 ? (
                   claseSeleccionada.listaInscriptos.map(idSocio => {
                     const socioInfo = socios.find(s => s.id === idSocio);
+                    const debeMes = estaVencido(socioInfo?.vencimiento); // Verificamos si debe cuota
+
                     return (
                       <div key={idSocio} className="flex justify-between items-center p-3 border border-gray-100 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-                        <span className="font-medium text-gray-800">{socioInfo ? socioInfo.nombre : 'Socio eliminado del sistema'}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="font-medium text-gray-800">{socioInfo ? socioInfo.nombre : 'Socio eliminado del sistema'}</span>
+                          {/* CARTELITO DE DEUDA PARA EL PROFE */}
+                          {debeMes && (
+                            <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold tracking-wide border border-red-200">
+                              DEBE CUOTA
+                            </span>
+                          )}
+                        </div>
                         <button onClick={() => handleDarDeBaja(idSocio)} className="text-red-500 hover:text-red-700 p-1.5 bg-white border border-red-100 hover:bg-red-50 rounded-lg transition-colors shadow-sm flex items-center gap-2 text-sm font-medium" title="Dar de baja"><X size={16} /> Quitar</button>
                       </div>
                     );
